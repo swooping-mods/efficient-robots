@@ -1,5 +1,7 @@
 # Efficient Robots
 
+<img src="media/icon.png" alt="Efficient Robots icon" width="128" height="128">
+
 Optional native vacuum and Joonas crowd collection optimization.
 
 ## Install
