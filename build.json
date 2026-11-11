@@ -1,0 +1,6 @@
+{
+  "schema": "moon-independent-build-spec/v1",
+  "id": "efficient-robots",
+  "kind": "native",
+  "entry": "mods/efficient-robots/mod.c"
+}

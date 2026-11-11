@@ -1,0 +1,27 @@
+{
+  "id": "efficient-robots",
+  "kind": "native",
+  "version": "0.1.0",
+  "feature_dependencies": [
+    "unit-runtime"
+  ],
+  "gameplay": true,
+  "display_name": "Efficient Robots",
+  "requires_apis": [
+    {
+      "api": "unit-runtime.units",
+      "abi": 1,
+      "min_size": 80
+    },
+    {
+      "api": "unit-runtime.contacts",
+      "abi": 1,
+      "min_size": 16
+    },
+    {
+      "api": "unit-runtime.sources",
+      "abi": 1,
+      "min_size": 48
+    }
+  ]
+}
