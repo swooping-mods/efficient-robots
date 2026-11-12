@@ -53,30 +53,41 @@ static void un_clear_units(void){
 static void un_movers_reset(void){
     un_clear_units();su_drop(&un_list_root);un_cache_world=0;un_cache_frame=~(U64)0;un_version=0;un_roster_count=0;
 }
+static void un_remove_actor_marker(unsigned i){
+    UNActor *actor=&un_actors[i];mu_remove(&un_index,i);
+    /* A rejected duplicate must never remove the original component's marker.
+     * Identity reservations survive inactivity until the roster is rebuilt. */
+    if(actor->id&&un_identity_find(&un_identities,actor->id)==(int)i)un_units->remove(1,actor->id);
+}
+static int un_actor_failed(unsigned i){un_remove_actor_marker(i);un_cache_valid=0;return 0;}
 static int un_publish_actor(unsigned i){
     UNActor *actor=&un_actors[i];PTR robot=su_get(actor->robot),world=0;int ok=1;
-    if(!robot)return 0;field_value(robot,un_world,&world);
-    if(world!=un_sources->world()||!boolean(un_active_enabled,robot,&ok)||!ok){mu_remove(&un_index,i);if(actor->id)un_units->remove(1,actor->id);return 1;}
+    if(!robot)return un_actor_failed(i);field_value(robot,un_world,&world);
+    if(world!=un_sources->world()){un_remove_actor_marker(i);return 1;}
+    int enabled=boolean(un_active_enabled,robot,&ok);if(!ok)return un_actor_failed(i);
+    if(!enabled){un_remove_actor_marker(i);return 1;}
     if(!actor->transform){PTR tr=call(un_component_transform,robot,0,&ok);actor->transform=su_hold(ok?tr:0);}
-    if(!actor->transform)return 0;
+    PTR transform=su_get(actor->transform);if(!transform)return un_actor_failed(i);
     if(!actor->id){
-        int identity=integer(un_instance_id,robot,&ok);if(!ok||!identity)return 0;actor->id=(unsigned)identity;
+        int identity=integer(un_instance_id,robot,&ok);if(!ok||!identity)return un_actor_failed(i);actor->id=(unsigned)identity;
         PTR dock=0;field_value(robot,un_dock_field,&dock);int id=0;if(dock)field_value(dock,un_dock_id_field,&id);actor->dock=id>0?(unsigned)id:0;
     }
+    if(!un_identity_put(&un_identities,actor->id,i))return un_actor_failed(i);
     float length=0,width=0;field_value(robot,un_length_field,&length);field_value(robot,un_width_field,&width);field_value(robot,un_fixed_field,&actor->immovable);
-    actor->radius=length>width?length:width;SPVec3 p=un_position(su_get(actor->transform));
-    if(!mu_valid((MUVec){p.x,p.y,p.z})||!mu_finite(actor->radius)||actor->radius<=0||actor->radius>1000)return 0;
-    if(!mu_publish(&un_index,i,i+1,1,(MUVec){p.x,p.y,p.z},0)||!un_units->publish(1,actor->id,1,(MoonUnitVector){p.x,p.y,p.z},actor->radius))return 0;
-    return un_identity_put(&un_identities,actor->id,i);
+    actor->radius=length>width?length:width;SPVec3 p=un_position(transform);
+    if(!mu_valid((MUVec){p.x,p.y,p.z})||!mu_finite(actor->radius)||actor->radius<=0||actor->radius>1000)return un_actor_failed(i);
+    if(!mu_publish(&un_index,i,i+1,1,(MUVec){p.x,p.y,p.z},0)||!un_units->publish(1,actor->id,1,(MoonUnitVector){p.x,p.y,p.z},actor->radius))return un_actor_failed(i);
+    return 1;
 }
 static int un_refresh(void){
     if(!un_units->host())return 0;int ok=1,frame=integer(un_frame_method,0,&ok);if(!ok||frame<0)return 0;
     PTR list=0;su.static_field(un_active_field,&list);
     if(!list){list=call(un_active,0,0,&ok);if(!ok||!list)return 0;}
     if(list!=su_get(un_list_root)){
-        un_movers_reset();un_list_root=su_hold(list);PTR cls=object_class(list);
+        un_movers_reset();PTR cls=object_class(list);if(!cls)return 0;
         un_items_field=get_field(cls,"_items");un_size_field=get_field(cls,"_size");un_version_field=get_field(cls,"_version");
         if(!un_items_field||!un_size_field||!un_version_field||su.field_offset(un_items_field)!=16||su.field_offset(un_size_field)!=24||su.field_offset(un_version_field)!=28)return 0;
+        un_list_root=su_hold(list);if(!un_list_root)return 0;
     }
     int count=0,version=0;field_value(list,un_size_field,&count);field_value(list,un_version_field,&version);
     if(count<0||count>MU_MAX)return 0;
@@ -96,7 +107,7 @@ static int un_refresh(void){
 static int un_actor_slot(PTR robot){
     int id=((int(*)(PTR,PTR))*(PTR*)un_instance_id)(robot,un_instance_id);if(!id)return -1;
     int slot=un_identity_find(&un_identities,(unsigned)id);
-    return slot>=0&&(unsigned)slot<un_count&&un_index.items[slot].active&&un_actors[slot].id==(unsigned)id?slot:-1;
+    return slot>=0&&(unsigned)slot<un_count&&un_index.items[slot].active&&un_actors[slot].id==(unsigned)id&&su_get(un_actors[slot].robot)==robot?slot:-1;
 }
 static void un_mark_pose(PTR robot){
     int slot=un_actor_slot(robot);if(slot>=0&&!un_dirty[slot]){un_dirty[slot]=1;un_dirty_slots[un_dirty_count++]=(unsigned)slot;}

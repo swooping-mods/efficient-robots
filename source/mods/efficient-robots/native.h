@@ -46,6 +46,7 @@ static void un_inspect(PTR robot){
     }
 }
 static int un_gather_robot(PTR robot){
+        if(!un_sources->main_thread())return 0;
         PTR world=0;field_value(robot,un_world,&world);
         if(un_units->host()&&world==un_sources->world()&&un_optimize){
             if(!un_use_index()){
@@ -82,6 +83,9 @@ static int un_gather_dispatch(PTR robot){
 }
 #include "fast_hooks.h"
 static void un_fast_gather(PTR robot,PTR method_id){
+    if(!un_sources->main_thread()){
+        ((void(*)(PTR,PTR))(un_fast_hooks[0].gateway+16))(robot,method_id);return;
+    }
     if(!un_profile_enabled&&!un_oracle&&!un_sources->count(0)&&un_roster_count<UN_INDEX_MIN){
         ((void(*)(PTR,PTR))(un_fast_hooks[0].gateway+16))(robot,method_id);return;
     }
@@ -89,13 +93,14 @@ static void un_fast_gather(PTR robot,PTR method_id){
     ((void(*)(PTR,PTR))(un_fast_hooks[0].gateway+16))(robot,method_id);
 }
 static void un_fast_move(PTR robot,const SPVec3 *delta,PTR method_id){
-    if(!un_inside&&un_count&&(un_oracle||un_sources->count(0)||un_roster_count>=UN_INDEX_MIN)&&un_units->host())un_mark_pose(robot);
+    if(un_units->host()&&!un_inside&&un_count&&(un_oracle||un_sources->count(0)||un_roster_count>=UN_INDEX_MIN))un_mark_pose(robot);
     /* Win64 passes this 12-byte value indirectly in RDX. Forward its native
      * storage unchanged so the original body can remain a tail call. */
     ((void(*)(PTR,const SPVec3*,PTR))(un_fast_hooks[1].gateway+16))(robot,delta,method_id);
 }
 static int un_before(int id,Context *context){
     if(!__atomic_load_n(&un_started,__ATOMIC_ACQUIRE))return 0;
+    if(!un_sources->main_thread())return 0;
     if(un_inside)return 0;
     if(id>=6&&id<=8)return un_profile_before((unsigned)id-6,context);
     if(id>=3&&id<=5){if((un_oracle||un_sources->count(0)||un_roster_count>=UN_INDEX_MIN)&&un_units->host())un_mark_pose((PTR)context->rcx);return 0;}
