@@ -9,6 +9,9 @@ Optional native vacuum and Joonas crowd collection optimization.
 ## Current source candidate
 
 Source version **0.1.0** is saved from workshop revision `ca32bbf79ce0840d5166a232bdb3a9fdcd761254`. The retained installable payload remains **0.1.0** with its original bytes. This source update does not rebuild or requalify that payload. The current source and metadata define the candidate; gameplay, rendered behavior and co-op remain unqualified for rebuilt bytes.
+
+
+Spatial source patch from workshop `8f33bea39bb52b8bcfb5822b98582e11698cc055` updates only `mods/unit-runtime/spatial.h`: cell tails remove repeated ascending-slot insertion walks while preserving stable queries. Other source files retain the base revision above. Workshop oracle/sanitizer checks and both Win64 DLL builds pass; current Unity/frame performance remains unqualified. Dense reverse-order publication can regress. Existing downloadable payloads and tags are unchanged.
 <!-- /source-only-sync -->
 
 ## Install

@@ -12,7 +12,7 @@ typedef struct {
     MUVec point;float radius;unsigned id,kind,active;
     int bucket,previous,next;
 } MUItem;
-typedef struct {MUCell key;int head;unsigned state,count,occupied_slot;} MUBucket;
+typedef struct {MUCell key;int head,tail;unsigned state,count,occupied_slot;} MUBucket;
 typedef struct {
     /* One transient cell can be reserved before unlinking a moving unit. */
     MUItem items[MU_MAX];MUBucket buckets[MU_BUCKETS];unsigned occupied_buckets[MU_MAX+1];
@@ -35,16 +35,16 @@ static inline int mu_bucket(MUSpatial *s,MUCell key,int create){
         if(b->state==2&&tomb<0)tomb=(int)at;
         if(!b->state){
             if(!create)return -1;if(tomb>=0){at=(unsigned)tomb;s->tombstones--;}
-            s->buckets[at]=(MUBucket){key,-1,1,0,s->occupied};s->occupied_buckets[s->occupied++]=at;return (int)at;
+            s->buckets[at]=(MUBucket){key,-1,-1,1,0,s->occupied};s->occupied_buckets[s->occupied++]=at;return (int)at;
         }
     }
-    if(create&&tomb>=0){s->tombstones--;s->buckets[tomb]=(MUBucket){key,-1,1,0,s->occupied};s->occupied_buckets[s->occupied++]=(unsigned)tomb;return tomb;}
+    if(create&&tomb>=0){s->tombstones--;s->buckets[tomb]=(MUBucket){key,-1,-1,1,0,s->occupied};s->occupied_buckets[s->occupied++]=(unsigned)tomb;return tomb;}
     return -1;
 }
 static inline void mu_unlink(MUSpatial *s,unsigned slot){
     MUItem *p=&s->items[slot];MUBucket *b=&s->buckets[p->bucket];
     if(p->previous>=0)s->items[p->previous].next=p->next;else b->head=p->next;
-    if(p->next>=0)s->items[p->next].previous=p->previous;
+    if(p->next>=0)s->items[p->next].previous=p->previous;else b->tail=p->previous;
     if(!--b->count){
         b->state=2;s->tombstones++;unsigned moved=s->occupied_buckets[--s->occupied];
         s->occupied_buckets[b->occupied_slot]=moved;s->buckets[moved].occupied_slot=b->occupied_slot;
@@ -66,7 +66,7 @@ static inline void mu_rehash(MUSpatial *s){
     s->rehashes++;unsigned occupied=s->occupied;mu_zero(s->buckets,sizeof(s->buckets));s->occupied=s->tombstones=0;
     for(unsigned k=0;k<occupied;k++){
         MUBucket old=saved[k];int bucket=mu_bucket(s,old.key,1);
-        s->buckets[bucket].head=old.head;s->buckets[bucket].count=old.count;
+        s->buckets[bucket].head=old.head;s->buckets[bucket].tail=old.tail;s->buckets[bucket].count=old.count;
         for(int i=old.head;i>=0;i=s->items[i].next)s->items[i].bucket=bucket;
     }
 }
@@ -78,10 +78,15 @@ static inline int mu_publish(MUSpatial *s,unsigned slot,unsigned id,unsigned kin
         int bucket=mu_bucket(s,cell,1);if(bucket<0)return 0;
         if(p->active)mu_unlink(s,slot);else s->count++;
         MUBucket *b=&s->buckets[bucket];int previous=-1,next=b->head;
-        while(next>=0&&(unsigned)next<slot){previous=next;next=s->items[next].next;}
+        /* Rosters commonly publish ascending slots. Append those in constant
+         * time while retaining sorted membership for arbitrary moves/reuse. */
+        if(next>=0&&(unsigned)next<slot){
+            if((unsigned)b->tail<slot){previous=b->tail;next=-1;}
+            else while(next>=0&&(unsigned)next<slot){previous=next;next=s->items[next].next;}
+        }
         p->bucket=bucket;p->previous=previous;p->next=next;
         if(previous>=0)s->items[previous].next=(int)slot;else b->head=(int)slot;
-        if(next>=0)s->items[next].previous=(int)slot;b->count++;
+        if(next>=0)s->items[next].previous=(int)slot;else b->tail=(int)slot;b->count++;
     }
     p->point=point;p->radius=radius;p->id=id;p->kind=kind;p->active=1;
     if(radius>s->max_radius)s->max_radius=radius;s->publications++;return 1;

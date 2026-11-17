@@ -7,7 +7,16 @@
     "compiled": false,
     "gameplay_requalified": false,
     "production_closure_complete": true,
-    "deferred_test_fixture_gaps": []
+    "deferred_test_fixture_gaps": [],
+    "patches": [
+      {
+        "workshop_revision": "8f33bea39bb52b8bcfb5822b98582e11698cc055",
+        "files": [
+          "mods/unit-runtime/spatial.h"
+        ],
+        "gameplay_requalified": false
+      }
+    ]
   },
   "source_files": {
     "mods/efficient-robots/actor_index.h": {
@@ -75,8 +84,8 @@
       "export_sha256": "8a84208658b1352ce83b3a6d75d456d664c2093a90547d7476826a4f259a069a"
     },
     "mods/unit-runtime/spatial.h": {
-      "source_sha256": "a6024c1ff7298e06882164d67488e23e048514961c39193b9e591ccd99380bbf",
-      "export_sha256": "a6024c1ff7298e06882164d67488e23e048514961c39193b9e591ccd99380bbf"
+      "source_sha256": "5cdde519a991c0104c284139a26b446084a96cd10fc18c8e8792a2ab78efde11",
+      "export_sha256": "5cdde519a991c0104c284139a26b446084a96cd10fc18c8e8792a2ab78efde11"
     },
     "runtime/native/gameplay.h": {
       "source_sha256": "07418f6e84e7c9393e804d49e680f6537ab99ae6a164dc046cdceaedc7bc5f13",
